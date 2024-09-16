@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,19 +32,11 @@ public class DocumentManager {
      * @return saved document
      */
     public Document save(Document document) {
-        if (document.getId() == null){
-            document = Document.builder()
-                    .id(UUID.randomUUID().toString())
-                    .title(document.getTitle())
-                    .content(document.getContent())
-                    .author(document.getAuthor())
-                    .created(Instant.now())
-                    .build();
+        if (Objects.isNull(document.getId()) || document.getId().isBlank() || document.getId().isEmpty()) {
+            document.setId(UUID.randomUUID().toString());
         }
 
-        documentRepo.put(document.getId(), document);
-
-        return document;
+        return documentRepo.put(document.getId(), document);
     }
 
     /**
@@ -55,37 +48,31 @@ public class DocumentManager {
     public List<Document> search(SearchRequest request) {
         return documentRepo.values().stream()
                 .filter(document -> {
-
-                    if (request.getTitlePrefixes() != null) {
-                        boolean matchesTitle = request.getTitlePrefixes().stream()
-                                .anyMatch(prefix -> document.getTitle() != null && document.getTitle().startsWith(prefix));
-                        if (!matchesTitle) return false;
-                    }
-
-                    if (request.getContainsContents() != null) {
-                        boolean matchesContent = request.getContainsContents().stream()
-                                .anyMatch(content -> document.getContent() != null && document.getContent().contains(content));
-                        if (!matchesContent) return false;
-                    }
-
-                    if (request.getAuthorIds() != null) {
-                        boolean matchesAuthor = request.getAuthorIds().contains(document.getAuthor().getId());
-                        if (!matchesAuthor) return false;
-                    }
-
-                    if (request.getCreatedFrom() != null) {
-                        if (document.getCreated() == null || document.getCreated().isBefore(request.getCreatedFrom())) {
-                            return false;
-                        }
-                    }
-
-                    if (request.getCreatedTo() != null) {
-                        if (document.getCreated() == null || document.getCreated().isAfter(request.getCreatedTo())) {
-                            return false;
-                        }
-                    }
-
-                    return true;
+                    if (Objects.nonNull(request.getTitlePrefixes()) && !request.getTitlePrefixes().isEmpty()) {
+                        return request.getTitlePrefixes().stream()
+                                .anyMatch(prefix -> Objects.nonNull(document.getTitle()) && document.getTitle().startsWith(prefix));
+                    } else return true;
+                })
+                .filter(document -> {
+                    if (Objects.nonNull(request.getContainsContents()) && !request.getContainsContents().isEmpty()) {
+                        return request.getContainsContents().stream()
+                                .anyMatch(content -> Objects.nonNull(document.getContent()) && document.getContent().contains(content));
+                    } else return true;
+                })
+                .filter(document -> {
+                    if (Objects.nonNull(request.getAuthorIds()) && !request.getAuthorIds().isEmpty()) {
+                        return request.getAuthorIds().contains(document.getAuthor().getId());
+                    } return true;
+                })
+                .filter(document -> {
+                    if (Objects.nonNull(request.getCreatedFrom())) {
+                        return document.getCreated().isAfter(request.getCreatedFrom());
+                    } else return true;
+                })
+                .filter(document -> {
+                    if (Objects.nonNull(request.getCreatedTo())) {
+                        return document.getCreated().isBefore(request.getCreatedTo());
+                    } else return true;
                 })
                 .toList();
     }
@@ -97,7 +84,7 @@ public class DocumentManager {
      * @return optional document
      */
     public Optional<Document> findById(String id) {
-
+        if (id == null || id.isBlank() || id.isEmpty()) throw new IllegalArgumentException("id is null or empty");
         return Optional.ofNullable(documentRepo.get(id));
     }
 
